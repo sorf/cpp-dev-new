@@ -8,7 +8,7 @@ template <typename T> void f(T const &v) { std::cout << "f: " << v << std::endl;
 
 void printAllocations(std::size_t line) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
-    std::printf("allocations @line: %lu total: %lu live: %lu\n", line, dev_new::total_allocations(),
+    std::printf("allocations @line: %zu total: %zu live: %zu\n", line, dev_new::total_allocations(),
                 dev_new::live_allocations());
 }
 
