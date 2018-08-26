@@ -3,10 +3,11 @@ set -e
 
 #!/bin/bash
 
-CPP_FILE="main.cpp dev_new.cpp"
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CPP_FILES="${script_dir}/main.cpp ${script_dir}/dev_new.cpp"
 
 clang-format-6.0 -i *.*pp
-clang-tidy-6.0 $CPP_FILE --  -std=c++17
+clang-tidy-6.0 $CPP_FILES --  -std=c++17
 
 GCC_LIBS="-lboost_system -lpthread"
 CLANG_LIBS=$GCC_LIBS
@@ -42,7 +43,6 @@ if [ -z "$BOOST_LIB_FOLDER" ]; then
     exit 1
 fi
 
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 mkdir -p "${script_dir}/bin"
 output_base_name="${script_dir}/bin/aa_${CPP_TOOLCHAIN}_${DEBUG_RELEASE}_${ADDRESS_MODEL}"
 build_command=
@@ -65,12 +65,12 @@ fi
 
 if [ "$BOOST_TOOLSET" = "gcc" ]; then
     build_command="g++ -o ${output_base_name}\
-        ${gcc_cxx_flags} ${script_dir}/${CPP_FILE} ${gcc_link_flags}"
+        ${gcc_cxx_flags} ${CPP_FILES} ${gcc_link_flags}"
 fi
 
 if [ "$BOOST_TOOLSET" = "clang" ]; then
     build_command="clang++ -o ${output_base_name}\
-        ${clang_cxx_flags} ${script_dir}/${CPP_FILE} ${clang_link_flags}"
+        ${clang_cxx_flags} ${CPP_FILES} ${clang_link_flags}"
 fi
 
 if [ -z "$build_command" ]; then
