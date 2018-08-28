@@ -1,5 +1,6 @@
 bin
 build
+.vs
 .vscode
 tmp
 *.obj
