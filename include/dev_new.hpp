@@ -2,6 +2,7 @@
 #define DEV_NEW_HPP
 
 #include <cstdlib>
+#include <new>
 
 namespace dev_new {
 
