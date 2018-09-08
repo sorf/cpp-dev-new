@@ -12,8 +12,7 @@ void print_allocations(std::size_t line) {
                 dev_new::live_allocations());
 }
 
-#define PRINT_ALLOCATIONSAT_LINE() \
-    print_allocations(__LINE__)
+#define PRINT_ALLOCATIONSAT_LINE() print_allocations(__LINE__)
 
 int main() {
     {

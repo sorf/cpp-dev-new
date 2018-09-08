@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.1)
 
-project(cpp-dev-new VERSION 0.1
-                    DESCRIPTION "C++ memory allocator for development and testing"
-                    LANGUAGES CXX)
+project(
+    cpp-dev-new
+    VERSION 0.1
+    DESCRIPTION "C++ memory allocator for development and testing"
+    LANGUAGES CXX)
 
 if (MSVC)
     if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
@@ -13,7 +15,7 @@ if (MSVC)
     add_compile_options(/WX)
 else()
     add_compile_options(-Wall -Wextra -Werror)
-    if (Clang)
+    if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
         add_compile_options(-Wglobal-constructors)
     endif()
 endif()
