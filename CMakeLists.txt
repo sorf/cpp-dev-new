@@ -18,7 +18,7 @@ else()
     if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
         add_compile_options(-Wglobal-constructors)
 
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "6.0")
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL "6.0")
             message(STATUS "Clang 6.0 detected; trying to enable clang-tidy-6.0...")
             find_program(
                 CLANG_TIDY_EXE
