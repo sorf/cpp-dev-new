@@ -38,6 +38,8 @@ endif()
 
 add_library(dev_new STATIC include/dev_new.hpp lib/dev_new.cpp)
 target_include_directories(dev_new PUBLIC include)
+target_include_directories(dev_new SYSTEM PRIVATE $ENV{BOOST_INCLUDE_FOLDER} )
+
 target_compile_features(dev_new PUBLIC cxx_std_17)
 set_target_properties(dev_new PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(CLANG_TIDY_EXE)

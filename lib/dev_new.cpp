@@ -6,6 +6,9 @@
 #include <new>
 #include <unordered_set>
 
+#include <boost/intrusive/parent_from_member.hpp>
+#include <boost/scope_exit.hpp>
+
 namespace dev_new {
 
 namespace detail {
@@ -46,7 +49,7 @@ void malloc_deallocate(void *ptr) noexcept {
     std::free(ptr);
 }
 
-// Malloc based allocator
+// Malloc based allocator.
 // Based on:
 // https://stackoverflow.com/a/36521845
 template <typename T> struct mallocator {
@@ -61,31 +64,52 @@ template <typename T> struct mallocator {
     void deallocate(T *const ptr, std::size_t /*unused*/) const noexcept { malloc_deallocate(ptr); }
 };
 
-// Allocated memory manager.
+// Object created for each allocation.
+struct allocation_object {
+    explicit allocation_object(std::size_t count) : count{count}, ptr{} {}
+    ~allocation_object() = default;
+
+    allocation_object(allocation_object const & /*unused*/) = delete;
+    allocation_object(allocation_object && /*unused*/) = delete;
+    allocation_object &operator=(allocation_object const & /*unused*/) = delete;
+    allocation_object &operator=(allocation_object && /*unused*/) = delete;
+
+    std::size_t count;
+    // User data starts here (aligned as size_t).
+    std::size_t ptr;
+};
+
+// Allocation memory manager.
 class memory_manager {
   public:
     static memory_manager &instance();
+    static memory_manager *instance(std::nothrow_t const & /*unused*/) noexcept;
 
     memory_manager(memory_manager const & /*unused*/) = delete;
     memory_manager(memory_manager && /*unused*/) = delete;
     memory_manager &operator=(memory_manager const & /*unused*/) = delete;
     memory_manager &operator=(memory_manager && /*unused*/) = delete;
 
-    std::size_t total_allocations() const;
-    std::size_t live_allocations() const;
+    std::uint64_t total_allocations() const noexcept { return m_total_allocations; }
+    std::uint64_t live_allocations() const noexcept { return m_pointers.size(); }
+
+    std::uint64_t max_allocated_size() const noexcept { return m_max_allocated_size; }
+    std::uint64_t allocated_size() const noexcept { return m_allocated_size; }
 
     void *allocate(std::size_t count, std::nothrow_t const & /*unused*/) noexcept;
     void *allocate(std::size_t count);
-    void deallocate(void *ptr);
+    void deallocate(void *ptr) noexcept;
 
   private:
-    memory_manager();
-    ~memory_manager();
+    memory_manager() : m_total_allocations{}, m_allocated_size{}, m_max_allocated_size{} {}
+    ~memory_manager() = default;
 
     using pointer_set = std::unordered_set<void *, std::hash<void *>, std::equal_to<>, mallocator<void *>>;
 
     pointer_set m_pointers;
-    std::size_t m_total_allocations;
+    std::uint64_t m_total_allocations;
+    std::uint64_t m_allocated_size;
+    std::uint64_t m_max_allocated_size;
 };
 
 memory_manager &memory_manager::instance() {
@@ -93,12 +117,14 @@ memory_manager &memory_manager::instance() {
     return m;
 }
 
-memory_manager::memory_manager() : m_total_allocations{} {}
-
-memory_manager::~memory_manager() = default;
-
-std::size_t memory_manager::total_allocations() const { return m_total_allocations; }
-std::size_t memory_manager::live_allocations() const { return m_pointers.size(); }
+memory_manager *memory_manager::instance(std::nothrow_t const & /*unused*/) noexcept {
+    memory_manager *m = nullptr;
+    try {
+        m = &instance();
+    } catch (std::exception &) {
+    }
+    return m;
+}
 
 void *memory_manager::allocate(std::size_t count, std::nothrow_t const & /*unused*/) noexcept {
     void *ptr = nullptr;
@@ -110,32 +136,91 @@ void *memory_manager::allocate(std::size_t count, std::nothrow_t const & /*unuse
 }
 
 void *memory_manager::allocate(std::size_t count) {
-    void *ptr = malloc_allocate(count);
-    if (ptr != nullptr) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay, hicpp-no-array-decay)
-        assert(m_pointers.count(ptr) == 0);
-        m_pointers.insert(ptr);
-        ++m_total_allocations;
-    }
-    return ptr;
+    void *allocation_ptr = malloc_allocate(sizeof(allocation_object) + count);
+    bool commit = false;
+    BOOST_SCOPE_EXIT_ALL(&) {
+        if (!commit) {
+            malloc_deallocate(allocation_ptr);
+            allocation_ptr = nullptr;
+        }
+    };
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    auto allocation = new (allocation_ptr) allocation_object(count);
+    BOOST_SCOPE_EXIT_ALL(&) {
+        if (!commit) {
+            allocation->~allocation_object();
+        }
+    };
+
+    void *user_ptr = &allocation->ptr;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay, hicpp-no-array-decay)
+    assert(m_pointers.count(user_ptr) == 0);
+    m_pointers.insert(user_ptr);
+
+    commit = true;
+    ++m_total_allocations;
+    m_allocated_size += count;
+    m_max_allocated_size = std::max(m_max_allocated_size, m_allocated_size);
+    return user_ptr;
 }
 
-void memory_manager::deallocate(void *ptr) {
+void memory_manager::deallocate(void *ptr) noexcept {
     if (ptr != nullptr && m_pointers.erase(ptr) != 0) {
-        malloc_deallocate(ptr);
+        auto user_ptr = static_cast<std::size_t *>(ptr);
+        auto allocation = boost::intrusive::get_parent_from_member(user_ptr, &allocation_object::ptr);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay, hicpp-no-array-decay)
+        assert(allocation->count <= m_allocated_size);
+        m_allocated_size -= allocation->count;
+        void *allocation_ptr = allocation;
+        allocation->~allocation_object();
+        malloc_deallocate(allocation_ptr);
     }
 }
 
 } // namespace detail
 
-std::size_t total_allocations() { return detail::memory_manager::instance().total_allocations(); }
-std::size_t live_allocations() { return detail::memory_manager::instance().live_allocations(); }
-
-void *allocate(std::size_t count, std::nothrow_t const & /*unused*/) {
-    return detail::memory_manager::instance().allocate(count, std::nothrow);
+std::uint64_t total_allocations() noexcept {
+    if (auto m = detail::memory_manager::instance(std::nothrow)) {
+        return m->total_allocations();
+    }
+    return 0;
 }
+
+std::uint64_t live_allocations() noexcept {
+    if (auto m = detail::memory_manager::instance(std::nothrow)) {
+        return m->live_allocations();
+    }
+    return 0;
+}
+
+std::uint64_t max_allocated_size() noexcept {
+    if (auto m = detail::memory_manager::instance(std::nothrow)) {
+        return m->max_allocated_size();
+    }
+    return 0;
+}
+
+std::uint64_t allocated_size() noexcept {
+    if (auto m = detail::memory_manager::instance(std::nothrow)) {
+        return m->allocated_size();
+    }
+    return 0;
+}
+
+void *allocate(std::size_t count, std::nothrow_t const & /*unused*/) noexcept {
+    if (auto m = detail::memory_manager::instance(std::nothrow)) {
+        return m->allocate(count, std::nothrow);
+    }
+    return nullptr;
+}
+
 void *allocate(std::size_t count) { return detail::memory_manager::instance().allocate(count); }
-void deallocate(void *ptr) { detail::memory_manager::instance().deallocate(ptr); }
+
+void deallocate(void *ptr) noexcept {
+    if (auto m = detail::memory_manager::instance(std::nothrow)) {
+        m->deallocate(ptr);
+    }
+}
 
 } // namespace dev_new
 
