@@ -141,7 +141,8 @@ class memory_manager {
         lock_guard lock(m_mutex);
         m_error_testing = true;
         m_error_countdown = countdown;
-        m_error_allocated_size = UINT64_MAX;
+        // If countdown is zero, all the subsequent allocations will fail.
+        m_error_allocated_size = m_allocated_size;
     }
 
     std::uint64_t get_error_countdown() noexcept {
