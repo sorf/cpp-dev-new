@@ -39,16 +39,33 @@ endif()
 add_library(dev_new STATIC include/dev_new.hpp lib/dev_new.cpp)
 target_include_directories(dev_new PUBLIC include)
 target_include_directories(dev_new SYSTEM PRIVATE $ENV{BOOST_INCLUDE_FOLDER} )
-
 target_compile_features(dev_new PUBLIC cxx_std_17)
 set_target_properties(dev_new PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(CLANG_TIDY_EXE)
     set_target_properties(dev_new PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
 endif()
 
-add_executable(example example/main.cpp)
-target_include_directories(example PRIVATE include)
-target_link_libraries(example PRIVATE dev_new)
-if(CLANG_TIDY_EXE)
-    set_target_properties(example PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
-endif()
+# Defines an executable (test or example) target.
+function(define_executable category root_name)
+    set(executable_binary ${category}_${root_name})
+    add_executable(${executable_binary} ${category}/${root_name}.cpp)
+    target_compile_features(${executable_binary} PRIVATE cxx_std_17)
+    target_include_directories(${executable_binary} PRIVATE include)
+    target_link_libraries(${executable_binary} PRIVATE dev_new)
+    if(CLANG_TIDY_EXE)
+        set_target_properties(${executable_binary} PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
+    endif()
+endfunction(define_executable)
+
+
+# The list of examples.
+set(DEV_NEW_EXAMPLES "initial")
+foreach(example_name ${DEV_NEW_EXAMPLES})
+    define_executable("example" ${example_name})
+endforeach(example_name)
+
+# The list of tests.
+set(DEV_NEW_TESTS "std_string")
+foreach(test_name ${DEV_NEW_TESTS})
+    define_executable("test" ${test_name})
+endforeach(test_name)

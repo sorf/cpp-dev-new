@@ -30,6 +30,7 @@ int main() {
             std::cerr << "Error: We shouldn't get here !" << std::endl;
         } catch (std::exception &e) {
             dev_new::pause_error_testing();
+            [[maybe_unused]] auto i3 = std::make_unique<std::uint32_t>(0);
             std::cout << "Expected error: " << e.what() << std::endl;
             dev_new::resume_error_testing();
         }
