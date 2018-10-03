@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-SOURCE_FOLDERS="example include lib test"
+SOURCE_FOLDERS="source"
 
 if [ -z "$CLANG_FORMAT" ]; then
     CLANG_FORMAT=clang-format-6.0
@@ -18,6 +18,7 @@ done
 SOURCE_FILES=$(find $FULL_PATH_SOURCE_FOLDERS -iname *.hpp -o -iname *.cpp)
 SOURCE_FILES_FAILED_CHECK=""
 for source_file in $SOURCE_FILES; do
+    # echo "Checking: $source_file"
     if ! diff -q $source_file <($CLANG_FORMAT -style=file $source_file) > /dev/null; then
         if [ ! -z "$SOURCE_FILES_FAILED_CHECK" ]; then
             SOURCE_FILES_FAILED_CHECK="$SOURCE_FILES_FAILED_CHECK\n"

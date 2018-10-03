@@ -1,3 +1,4 @@
+// NOLINT(readability-identifier-naming)
 #include "dev_new.hpp"
 
 #include <cstdlib>
