@@ -7,10 +7,19 @@ class DevNewConan(ConanFile):
     url = "https://github.com/sorf/cpp-dev-new"
     description = "C++ memory allocator for development and testing "
     settings = "os", "arch", "compiler", "build_type"
+    options = {"clang_tidy": [True, False]}
     generators = "cmake"
     exports_sources = "source/*", ".clang-format", ".clang-tidy", "CMakeLists.txt", "format_check.sh"
     requires = "boost/1.68.0@conan/stable"
-    default_options = "boost:header_only=True"
+    default_options = "clang_tidy=False", "boost:header_only=True"
+
+    def _path_clang_tidy(self):
+        clang_tidy_exe = tools.get_env("CLANG_TIDY", "clang-tidy")
+        return tools.which(clang_tidy_exe)
+
+    def configure(self):
+        if not self._path_clang_tidy():
+            self.options.clang_tidy = False
 
     def _configure_cmake(self):
         cmake = CMake(self)
@@ -21,10 +30,12 @@ class DevNewConan(ConanFile):
             cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror"
         elif self.settings.compiler == "clang":
             cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -Wglobal-constructors"
-            if self.settings.compiler.version == '6.0':
-                path_clang_tidy = tools.which('clang-tidy-6.0')
-                if path_clang_tidy:
-                    cmake.definitions["CLANG_TIDY_COMMAND"] = path_clang_tidy
+
+        if self.options.clang_tidy:
+            # If testing with clang_tidy, removing the CONAN_LIBCXX flag so that we do not get a
+            # clang-tidy warning/error from _GLIBCXX_USE_CXX11_ABI being defined
+            del cmake.definitions["CONAN_LIBCXX"]
+            cmake.definitions["CLANG_TIDY_COMMAND"] = self._path_clang_tidy()
 
         cmake.configure()
         return cmake
