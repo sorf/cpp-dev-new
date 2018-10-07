@@ -34,6 +34,7 @@ class DevNewConan(ConanFile):
 
         cmake.configure()
         cmake.build()
+        cmake.test()
 
     def package(self):
         self.copy("*.hpp", dst="include", src="source/include")
