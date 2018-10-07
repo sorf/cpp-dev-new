@@ -34,7 +34,8 @@ class DevNewConan(ConanFile):
 
         cmake.configure()
         cmake.build()
-        cmake.test()
+        with tools.environment_append({"CTEST_OUTPUT_ON_FAILURE": "1"}):
+            cmake.test()
 
     def package(self):
         self.copy("*.hpp", dst="include", src="source/include")
