@@ -13,15 +13,7 @@ class DevNewConan(ConanFile):
     requires = "boost/1.68.0@conan/stable"
     default_options = "clang_tidy=False", "boost:header_only=True"
 
-    def _path_clang_tidy(self):
-        clang_tidy_exe = tools.get_env("CLANG_TIDY", "clang-tidy")
-        return tools.which(clang_tidy_exe)
-
-    def configure(self):
-        if not self._path_clang_tidy():
-            self.options.clang_tidy = False
-
-    def _configure_cmake(self):
+    def build(self):
         cmake = CMake(self)
         cmake.verbose = True
         if self.settings.compiler == "Visual Studio":
@@ -35,13 +27,12 @@ class DevNewConan(ConanFile):
             # If testing with clang_tidy, removing the CONAN_LIBCXX flag so that we do not get a
             # clang-tidy warning/error from _GLIBCXX_USE_CXX11_ABI being defined
             del cmake.definitions["CONAN_LIBCXX"]
-            cmake.definitions["CLANG_TIDY_COMMAND"] = self._path_clang_tidy()
+
+            path_clang_tidy = tools.which(tools.get_env("CLANG_TIDY", "clang-tidy"))
+            if path_clang_tidy:
+                cmake.definitions["CLANG_TIDY_COMMAND"] = path_clang_tidy
 
         cmake.configure()
-        return cmake
-
-    def build(self):
-        cmake = self._configure_cmake()
         cmake.build()
 
     def package(self):

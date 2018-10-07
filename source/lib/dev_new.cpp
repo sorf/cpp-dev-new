@@ -223,6 +223,13 @@ class memory_manager {
         }
     }
 
+    void check_allocation(void *ptr) {
+        lock_guard lock(m_mutex);
+        if (m_pointers.count(ptr) == 0) {
+            throw std::domain_error("dev_new: pointer not allocated by this allocator");
+        }
+    }
+
   private:
     memory_manager()
         : m_total_allocations{}, m_allocated_size{}, m_max_allocated_size{}, m_error_testing{},
@@ -310,6 +317,12 @@ void *allocate(std::size_t count) { return detail::memory_manager::instance().al
 void deallocate(void *ptr) noexcept {
     if (auto m = detail::memory_manager::instance(std::nothrow)) {
         m->deallocate(ptr);
+    }
+}
+
+void check_allocation(void *ptr) {
+    if (auto m = detail::memory_manager::instance(std::nothrow)) {
+        m->check_allocation(ptr);
     }
 }
 

@@ -21,6 +21,10 @@ void *allocate(std::size_t count, std::nothrow_t const & /*unused*/) noexcept;
 void *allocate(std::size_t count);
 void deallocate(void *ptr) noexcept;
 
+/// Checks that a pointer has been allocated by this allocator.
+/// Throws an error if the test fails.
+void check_allocation(void *ptr);
+
 } // namespace dev_new
 
 #endif
