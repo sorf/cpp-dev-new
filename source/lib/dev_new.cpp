@@ -6,25 +6,26 @@
 #include <new>
 #include <unordered_set>
 
-#include <boost/current_function.hpp>
 #include <boost/intrusive/parent_from_member.hpp>
 #include <boost/scope_exit.hpp>
 
 namespace dev_new {
 
-namespace detail {
-
-void assertion_failed(char const *expression, char const *function, char const *file, std::size_t line) {
+void assertion_failed(char const *expr, char const *function, char const *file, std::size_t line) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
-    std::fprintf(stderr, "dev_new assertion failed: %s (function: %s, file: %s, line: %zu)\n", expression, function,
-                 file, line);
+    std::fprintf(stderr, "dev_new assertion failed: %s (function: %s, file: %s, line: %zu)\n", expr, function, file,
+                 line);
     std::abort();
 }
 
-#define DEV_NEW_ASSERT(expression)                                                                                     \
-    ((expression) ? ((void)0)                                                                                          \
-                  : ::dev_new::detail::assertion_failed(                                                               \
-                        #expression, static_cast<char const *>(BOOST_CURRENT_FUNCTION), __FILE__, __LINE__))
+void assertion_failed_msg(char const *expr, char const *msg, char const *function, char const *file, std::size_t line) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
+    std::fprintf(stderr, "dev_new assertion failed: %s) (message: %s, function: %s, file: %s, line: %zu)\n", expr, msg,
+                 function, file, line);
+    std::abort();
+}
+
+namespace detail {
 
 void *malloc_allocate(std::size_t count, std::nothrow_t const & /*unused*/) noexcept {
     if (count == 0) {
@@ -160,6 +161,11 @@ class memory_manager {
         m_error_testing = true;
     }
 
+    void error_point() {
+        lock_guard lock(m_mutex);
+        error_point_implementation(1);
+    }
+
     void *allocate(std::size_t count, std::nothrow_t const & /*unused*/) noexcept {
         void *ptr = nullptr;
         try {
@@ -171,17 +177,7 @@ class memory_manager {
 
     void *allocate(std::size_t count) {
         lock_guard lock(m_mutex);
-        if (m_error_testing) {
-            if (m_error_countdown > 1) {
-                --m_error_countdown;
-            } else if (m_error_countdown == 1) {
-                m_error_allocated_size = m_allocated_size;
-                m_error_countdown = 0;
-                throw std::bad_alloc();
-            } else if (m_allocated_size + count > m_error_allocated_size) {
-                throw std::bad_alloc();
-            }
-        }
+        error_point_implementation(count);
 
         void *allocation_ptr = malloc_allocate(sizeof(allocation_object) + count);
         bool commit = false;
@@ -230,11 +226,30 @@ class memory_manager {
         }
     }
 
+    bool check_allocation(void *ptr, std::nothrow_t const & /*unused*/) noexcept {
+        lock_guard lock(m_mutex);
+        return m_pointers.count(ptr) != 0;
+    }
+
   private:
     memory_manager()
         : m_total_allocations{}, m_allocated_size{}, m_max_allocated_size{}, m_error_testing{},
           m_error_countdown{UINT64_MAX}, m_error_allocated_size{UINT64_MAX} {}
     ~memory_manager() = default;
+
+    void error_point_implementation(std::size_t count) {
+        if (m_error_testing) {
+            if (m_error_countdown > 1) {
+                --m_error_countdown;
+            } else if (m_error_countdown == 1) {
+                m_error_allocated_size = m_allocated_size;
+                m_error_countdown = 0;
+                throw std::bad_alloc();
+            } else if (m_allocated_size + count > m_error_allocated_size) {
+                throw std::bad_alloc();
+            }
+        }
+    }
 
     using pointer_set = std::unordered_set<void *, std::hash<void *>, std::equal_to<>, mallocator<void *>>;
     using lock_guard = std::lock_guard<std::mutex>;
@@ -305,6 +320,8 @@ void resume_error_testing() noexcept {
     }
 }
 
+void error_point() { detail::memory_manager::instance().error_point(); }
+
 void *allocate(std::size_t count, std::nothrow_t const & /*unused*/) noexcept {
     if (auto m = detail::memory_manager::instance(std::nothrow)) {
         return m->allocate(count, std::nothrow);
@@ -324,6 +341,13 @@ void check_allocation(void *ptr) {
     if (auto m = detail::memory_manager::instance(std::nothrow)) {
         m->check_allocation(ptr);
     }
+}
+
+bool check_allocation(void *ptr, std::nothrow_t const & /*unused*/) noexcept {
+    if (auto m = detail::memory_manager::instance(std::nothrow)) {
+        return m->check_allocation(ptr, std::nothrow);
+    }
+    return false;
 }
 
 } // namespace dev_new
