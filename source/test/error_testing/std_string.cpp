@@ -9,7 +9,7 @@ void test_function() {
     std::string s2("bc");
     std::string s30("012345678901234567890123456789");
     auto sum = s0 + s1 + s2 + s30;
-    DEV_NEW_ASSERT( sum.length() == 33 );
+    DEV_NEW_ASSERT(sum.length() == 33);
 }
 
 int main() {

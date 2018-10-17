@@ -38,3 +38,8 @@ set(ERROR_TESTING "std_string")
 foreach(test_name ${ERROR_TESTING})
     define_test_executable("error_testing" ${test_name})
 endforeach(test_name)
+
+set(UNIT_TESTS "error_point")
+foreach(test_name ${UNIT_TESTS})
+    define_test_executable("unit" ${test_name})
+endforeach(test_name)
