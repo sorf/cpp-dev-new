@@ -46,5 +46,5 @@ foreach(test_name ${ERROR_TESTING})
     define_test_executable(error_testing ${test_name} ${test_name}.cpp)
 endforeach(test_name)
 
-set(UNIT_TESTS error_point.cpp; main.cpp)
+set(UNIT_TESTS dev_new_catch.hpp;main.cpp;error_point.cpp)
 define_test_executable(unit tests "${UNIT_TESTS}")
