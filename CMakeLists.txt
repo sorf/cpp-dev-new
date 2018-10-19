@@ -23,7 +23,6 @@ endif()
 function(define_test_executable category test_name sources)
     set(full_path_sources "")
     foreach(source ${sources})
-        message("source: " ${source})
         list(APPEND full_path_sources source/test/${category}/${source})
     endforeach(source)
 
