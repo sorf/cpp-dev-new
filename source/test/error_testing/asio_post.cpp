@@ -3,13 +3,12 @@
 
 #include <asio/io_context.hpp>
 #include <asio/post.hpp>
-#include <iostream>
 
 int main() {
     error_testing::run_loop([] {
         asio::io_context io_context;
         unsigned s = 0;
-        io_context.post([&] { std::cout << s << std::endl; });
+        io_context.post([&] { DEV_NEW_ASSERT(s == 1); });
         s = 1;
         io_context.run();
         s = 2;
