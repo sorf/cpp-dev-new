@@ -15,6 +15,10 @@ for source_folder in $SOURCE_FOLDERS; do
     fi
 done
 
+COLOR_RED='\033[0;31m'
+COLOR_GREEN='\033[0;32m'
+COLOR_NONE='\033[0m'
+
 SOURCE_FILES=$(find $FULL_PATH_SOURCE_FOLDERS -maxdepth 1 -iname *.hpp -o -iname *.cpp)
 SOURCE_FILES_FAILED_CHECK=""
 for source_file in $SOURCE_FILES; do
@@ -24,9 +28,9 @@ for source_file in $SOURCE_FILES; do
             SOURCE_FILES_FAILED_CHECK="$SOURCE_FILES_FAILED_CHECK\n"
         fi
         SOURCE_FILES_FAILED_CHECK="$SOURCE_FILES_FAILED_CHECK\t$source_file"
-        echo "FAIL"
+        echo -e "${COLOR_RED}FAIL${COLOR_NONE}"
     else
-        echo OK
+        echo -e "${COLOR_GREEN}OK${COLOR_NONE}"
     fi
 done
 
