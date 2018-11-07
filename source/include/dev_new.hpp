@@ -22,7 +22,7 @@ void set_error_countdown(std::uint64_t countdown) noexcept;
 std::uint64_t get_error_countdown() noexcept;
 
 /// Pause and resume raising errors when allocating memory.
-/// This is useful for disabling memory errors when for logging or reporting an error.
+/// This is useful for disabling memory errors while logging, reporting an error or calling a unit-test framework.
 // \{
 void pause_error_testing() noexcept;
 void resume_error_testing() noexcept;
@@ -33,7 +33,7 @@ void resume_error_testing() noexcept;
 /// condition.
 void error_point();
 
-/// Raw allcoation and deallocation.
+/// Raw allocation and deallocation.
 // \{
 void *allocate(std::size_t count, std::nothrow_t const & /*unused*/) noexcept;
 void *allocate(std::size_t count);
