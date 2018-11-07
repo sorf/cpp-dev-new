@@ -25,7 +25,7 @@ class DevNewConan(ConanFile):
             cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -Wglobal-constructors"
 
         if not self.settings.os == "Windows":
-            cmake.definitions["CONAN_CXX_FLAGS"] = " -pthread"
+            cmake.definitions["CONAN_CXX_FLAGS"] += " -pthread"
 
         if self.options.clang_tidy:
             # If testing with clang_tidy, removing the CONAN_LIBCXX flag so that we do not get a
