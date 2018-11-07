@@ -11,7 +11,7 @@ class DevNewConan(ConanFile):
     generators = "cmake"
     exports_sources = "source/*", ".clang-format", ".clang-tidy", "CMakeLists.txt", "format_check.sh"
     requires = "boost/1.68.0@conan/stable"
-    build_requires = "catch2/2.4.0@bincrafters/stable"
+    build_requires = "asio/1.12.1@sorf/testing", "catch2/2.4.0@bincrafters/stable"
     default_options = "clang_tidy=False", "boost:header_only=True"
 
     def build(self):
@@ -23,6 +23,9 @@ class DevNewConan(ConanFile):
             cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror"
         elif self.settings.compiler == "clang":
             cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -Wglobal-constructors"
+
+        if not self.settings.os == "Windows":
+            cmake.definitions["CONAN_CXX_FLAGS"] = " -pthread"
 
         if self.options.clang_tidy:
             # If testing with clang_tidy, removing the CONAN_LIBCXX flag so that we do not get a

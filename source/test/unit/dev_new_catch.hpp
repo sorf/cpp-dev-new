@@ -1,10 +1,13 @@
+#ifndef DEV_NEW_CATCH_HPP
+#define DEV_NEW_CATCH_HPP
+
 #include "dev_new.hpp"
 #include <boost/scope_exit.hpp>
 #include <catch2/catch.hpp>
 
 #define DEV_NEW_END_TEST() dev_new::pause_error_testing();
 
-template <typename F> decltype(auto) dev_new_wrap(F const &&f) {
+template <typename F> decltype(auto) dev_new_wrap(F const &f) {
     dev_new::resume_error_testing();
     BOOST_SCOPE_EXIT_ALL(&) { dev_new::pause_error_testing(); };
     return f();
@@ -32,3 +35,5 @@ template <typename F> decltype(auto) dev_new_wrap(F const &&f) {
         CHECK_THROWS_AS(DEV_NEW_WRAP(expression), exceptionType);                                                      \
         dev_new::resume_error_testing();                                                                               \
     } while (false)
+
+#endif
