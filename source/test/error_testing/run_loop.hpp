@@ -6,6 +6,8 @@
 
 namespace error_testing {
 
+/// Error testing run loop.
+/// It calls the given function as long as the error countdown leads to an error being raised.
 template <typename F> void run_loop(F const &f) {
     std::uint64_t error_countdown = 1;
     bool retry = true;

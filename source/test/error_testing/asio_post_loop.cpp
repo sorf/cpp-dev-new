@@ -1,3 +1,4 @@
+// Error testing of a loop (chain) of asio::io_context::post() calls.
 #include "dev_new.hpp"
 #include "run_loop.hpp"
 
