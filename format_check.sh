@@ -5,7 +5,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SOURCE_FOLDERS="source/include source/lib source/test/error_testing source/test/unit test_package"
 
 if [ -z "$CLANG_FORMAT" ]; then
-    CLANG_FORMAT=clang-format-6.0
+    CLANG_FORMAT=clang-format-7
 fi
 
 FULL_PATH_SOURCE_FOLDERS=""
