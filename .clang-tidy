@@ -1,5 +1,5 @@
 ---
-Checks:          '*,-fuchsia-*,-llvm-header-guard'
+Checks:          '*,-fuchsia-*,-llvm-header-guard,-google-runtime-references'
 WarningsAsErrors: '*'
 AnalyzeTemporaryDtors: true
 HeaderFilterRegex: '.*'
