@@ -10,11 +10,11 @@ namespace {
 
 using buffer_t = std::vector<char>;
 
-void posted_func(asio::io_context &io_context, unsigned count, buffer_t buf) {
+void posted_func(asio::io_context &io_context, unsigned count, buffer_t buffer) {
     dev_new::run_no_error_testing([&] { std::cout << "posted_func: " << count << std::endl; });
     if (count != 0) {
-        io_context.post([&io_context, count, buf = std::move(buf)]() mutable {
-            posted_func(io_context, count - 1, std::move(buf));
+        asio::post(io_context, [&io_context, count, buffer = std::move(buffer)]() mutable {
+            posted_func(io_context, count - 1, std::move(buffer));
         });
     }
 }
@@ -24,8 +24,8 @@ void posted_func(asio::io_context &io_context, unsigned count, buffer_t buf) {
 int main() {
     error_testing::run_loop([] {
         asio::io_context io_context;
-        asio::post(io_context, [&io_context, count = 3, buf = buffer_t(10)]() mutable {
-            posted_func(io_context, count, std::move(buf));
+        asio::post(io_context, [&io_context, count = 3, buffer = buffer_t(10)]() mutable {
+            posted_func(io_context, count, std::move(buffer));
         });
         io_context.run();
     });

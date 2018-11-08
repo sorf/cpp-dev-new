@@ -10,7 +10,7 @@ namespace {
 void posted_func(asio::io_context &io_context, unsigned count) {
     dev_new::run_no_error_testing([&] { std::cout << "posted_func: " << count << std::endl; });
     if (count != 0) {
-        io_context.post([&io_context, count] { posted_func(io_context, count - 1); });
+        asio::post(io_context, [&io_context, count] { posted_func(io_context, count - 1); });
     }
 }
 

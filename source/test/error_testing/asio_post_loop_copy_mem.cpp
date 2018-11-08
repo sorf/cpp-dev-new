@@ -11,10 +11,10 @@ namespace {
 using buffer_t = std::vector<char>;
 
 // NOLINTNEXTLINE(performance-unnecessary-value-param)
-void posted_func(asio::io_context &io_context, unsigned count, buffer_t buf) {
+void posted_func(asio::io_context &io_context, unsigned count, buffer_t buffer) {
     dev_new::run_no_error_testing([&] { std::cout << "posted_func: " << count << std::endl; });
     if (count != 0) {
-        io_context.post([&io_context, count, buf] { posted_func(io_context, count - 1, buf); });
+        asio::post(io_context, [&io_context, count, buffer] { posted_func(io_context, count - 1, buffer); });
     }
 }
 
@@ -23,7 +23,8 @@ void posted_func(asio::io_context &io_context, unsigned count, buffer_t buf) {
 int main() {
     error_testing::run_loop([] {
         asio::io_context io_context;
-        asio::post(io_context, [&io_context, count = 3, buf = buffer_t(10)] { posted_func(io_context, count, buf); });
+        asio::post(io_context,
+                   [&io_context, count = 3, buffer = buffer_t(10)] { posted_func(io_context, count, buffer); });
         io_context.run();
     });
     return 0;
