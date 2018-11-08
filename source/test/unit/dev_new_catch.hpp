@@ -7,33 +7,12 @@
 
 #define DEV_NEW_END_TEST() dev_new::pause_error_testing();
 
-template <typename F> decltype(auto) dev_new_wrap(F const &f) {
-    dev_new::resume_error_testing();
-    BOOST_SCOPE_EXIT_ALL(&) { dev_new::pause_error_testing(); };
-    return f();
-}
-
-#define DEV_NEW_WRAP(expression) dev_new_wrap([] { return expression; })
-
 #define DEV_NEW_REQUIRE(expression)                                                                                    \
-    do {                                                                                                               \
-        dev_new::pause_error_testing();                                                                                \
-        REQUIRE(DEV_NEW_WRAP(expression));                                                                             \
-        dev_new::resume_error_testing();                                                                               \
-    } while (false)
+    ::dev_new::run_no_error_testing([] { REQUIRE(DEV_NEW_RUN_ERROR_TESTING(expression)); })
 
-#define DEV_NEW_CHECK(expression)                                                                                      \
-    do {                                                                                                               \
-        dev_new::pause_error_testing();                                                                                \
-        CHECK(DEV_NEW_WRAP(expression));                                                                               \
-        dev_new::resume_error_testing();                                                                               \
-    } while (false)
+#define DEV_NEW_CHECK(expression) ::dev_new::run_no_error_testing([] { CHECK(DEV_NEW_RUN_ERROR_TESTING(expression)); })
 
 #define DEV_NEW_CHECK_THROWS_AS(expression, exceptionType)                                                             \
-    do {                                                                                                               \
-        dev_new::pause_error_testing();                                                                                \
-        CHECK_THROWS_AS(DEV_NEW_WRAP(expression), exceptionType);                                                      \
-        dev_new::resume_error_testing();                                                                               \
-    } while (false)
+    ::dev_new::run_no_error_testing([] { CHECK_THROWS_AS(DEV_NEW_RUN_ERROR_TESTING(expression), exceptionType); })
 
 #endif

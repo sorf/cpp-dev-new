@@ -1,6 +1,7 @@
 #ifndef DEV_NEW_HPP
 #define DEV_NEW_HPP
 
+#include <boost/scope_exit.hpp>
 #include <cstdint>
 #include <cstdlib>
 #include <new>
@@ -46,6 +47,20 @@ void check_allocation(void *ptr);
 /// Checks that a pointer has been allocated by this allocator.
 bool check_allocation(void *ptr, std::nothrow_t const & /*unused*/) noexcept;
 
+/// Runs a function under resume/pause error testing.
+template <typename F> decltype(auto) run_error_testing(F const &f) {
+    resume_error_testing();
+    BOOST_SCOPE_EXIT_ALL(&) { pause_error_testing(); };
+    return f();
+}
+
+/// Runs a function under pause/resume error testing.
+template <typename F> decltype(auto) run_no_error_testing(F const &f) {
+    pause_error_testing();
+    BOOST_SCOPE_EXIT_ALL(&) { resume_error_testing(); };
+    return f();
+}
+
 } // namespace dev_new
 
 /// Assertion macros.
@@ -58,5 +73,11 @@ bool check_allocation(void *ptr, std::nothrow_t const & /*unused*/) noexcept;
     ((expr) ? ((void)0)                                                                                                \
             : ::dev_new::assertion_failed_msg(#expr, msg, static_cast<char const *>(__func__), __FILE__, __LINE__))
 // \}
+
+/// Runs an expression under resume/pause error testing.
+#define DEV_NEW_RUN_ERROR_TESTING(expression) ::dev_new::run_error_testing([&] { return expression; })
+
+/// Runs an expression under pause/resume error testing.
+#define DEV_NEW_RUN_NO_ERROR_TESTING(expression) ::dev_new::run_no_error_testing([&] { return expression; })
 
 #endif
