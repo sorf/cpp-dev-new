@@ -23,7 +23,7 @@ void posted_func(asio::io_context &io_context, unsigned count, buffer_t buf) {
 int main() {
     error_testing::run_loop([] {
         asio::io_context io_context;
-        io_context.post([&io_context, count = 3, buf = buffer_t(10)] { posted_func(io_context, count, buf); });
+        asio::post(io_context, [&io_context, count = 3, buf = buffer_t(10)] { posted_func(io_context, count, buf); });
         io_context.run();
     });
     return 0;
