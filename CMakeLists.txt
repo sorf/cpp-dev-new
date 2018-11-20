@@ -41,7 +41,9 @@ function(define_test_executable category test_name sources)
 endfunction(define_test_executable)
 
 
-set(ERROR_TESTING std_string;asio_post_basic;asio_post_loop;asio_post_loop_copy_mem;asio_post_loop_move_mem)
+set(ERROR_TESTING 
+    std_string;
+    asio_post_basic; asio_post_loop; asio_post_loop_copy_mem; asio_post_loop_move_mem; asio_post_loop_move_mem_v2)
 foreach(test_name ${ERROR_TESTING})
     define_test_executable(error_testing ${test_name} ${test_name}.cpp)
 endforeach(test_name)
