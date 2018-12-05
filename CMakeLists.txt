@@ -43,7 +43,8 @@ endfunction(define_test_executable)
 
 set(ERROR_TESTING 
     std_string;
-    asio_post_basic; asio_post_loop; asio_post_loop_copy_mem; asio_post_loop_move_mem; asio_post_loop_move_mem_v2)
+    asio_post_basic; asio_post_loop; asio_post_loop_copy_mem; asio_post_loop_move_mem; asio_post_loop_move_mem_v2
+    asio_timer_loop_copy_mem; asio_timer_loop_move_mem)
 foreach(test_name ${ERROR_TESTING})
     define_test_executable(error_testing ${test_name} ${test_name}.cpp)
 endforeach(test_name)
