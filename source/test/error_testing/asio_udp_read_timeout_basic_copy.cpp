@@ -41,11 +41,22 @@ int main() {
         // Timeout
         timeout_timer.expires_after(std::chrono::milliseconds(100));
         timeout_timer.async_wait([&, timeout_buffer](asio::error_code /*unused*/) {
+#if 0
+            // Simulate a handler copy operation before being called.
+            // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
+            [[maybe_unused]] auto const timeout_buffer_copy = timeout_buffer;
+#endif
             asio::error_code ignored;
             socket.close(ignored);
         });
 
-        io_context.run();
+        while (!io_context.stopped()) {
+            try {
+                io_context.run();
+            } catch (std::exception &e) {
+                dev_new::run_no_error_testing([&] { std::cout << "io_context run error: " << e.what() << std::endl; });
+            }
+        }
     });
     return 0;
 }

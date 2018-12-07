@@ -39,7 +39,13 @@ int main() {
             socket.close(ignored);
         });
 
-        io_context.run();
+        while (!io_context.stopped()) {
+            try {
+                io_context.run();
+            } catch (std::exception &e) {
+                dev_new::run_no_error_testing([&] { std::cout << "io_context run error: " << e.what() << std::endl; });
+            }
+        }
     });
     return 0;
 }
