@@ -41,10 +41,12 @@ int main() {
         // Timeout
         timeout_timer.expires_after(std::chrono::milliseconds(100));
         timeout_timer.async_wait([&, timeout_buffer](asio::error_code /*unused*/) {
-#if 0
+#if 0 // Execution blocks if we enable this
+
             // Simulate a handler copy operation before being called.
             // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
             [[maybe_unused]] auto const timeout_buffer_copy = timeout_buffer;
+
 #endif
             asio::error_code ignored;
             socket.close(ignored);
