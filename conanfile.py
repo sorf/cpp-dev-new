@@ -20,11 +20,11 @@ class DevNewConan(ConanFile):
         if self.settings.compiler == "Visual Studio":
             cmake.definitions["CONAN_CXX_FLAGS"] += " /W4 /WX /D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS" +\
                                                     " /D_WIN32_WINNT=0x0A00" +\
-                                                    " /DASIO_DISABLE_BOOST_DATE_TIME"
+                                                    " /DASIO_STANDALONE"
         elif self.settings.compiler == "gcc":
-            cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror"
+            cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -DASIO_STANDALONE"
         elif self.settings.compiler == "clang":
-            cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -Wglobal-constructors"
+            cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -Wglobal-constructors -DASIO_STANDALONE"
 
         if not self.settings.os == "Windows":
             cmake.definitions["CONAN_CXX_FLAGS"] += " -pthread"
