@@ -1,5 +1,6 @@
 // Error testing of the Asio composed operation example.
 // See: https://github.com/chriskohlhoff/asio/blob/master/asio/src/examples/cpp11/operations/composed_5.cpp
+// for detailed comments.
 #include "dev_new.hpp"
 #include "run_loop.hpp"
 
@@ -28,145 +29,77 @@
 
 using asio::ip::tcp;
 
-//------------------------------------------------------------------------------
-
-// This composed operation shows composition of multiple underlying operations.
-// It automatically serialises a message, using its I/O streams insertion
-// operator, before sending it N times on the socket. To do this, it must
-// allocate a buffer for the encoded message and ensure this buffer's validity
-// until all underlying async_write operation complete. A one second delay is
-// inserted prior to each write operation, using a steady_timer.
+// Composed operation.
 template <typename T, typename CompletionToken>
-auto async_write_messages(tcp::socket &socket, const T &message, std::size_t repeat_count, CompletionToken &&token)
-    // The return type of the initiating function is deduced from the combination
-    // of CompletionToken type and the completion handler's signature. When the
-    // completion token is a simple callback, the return type is always void.
-    // In this example, when the completion token is asio::yield_context
-    // (used for stackful coroutines) the return type would be also be void, as
-    // there is no non-error argument to the completion handler. When the
-    // completion token is asio::use_future it would be std::future<void>.
+auto async_write_messages(tcp::socket &socket, T const &message, std::size_t repeat_count, CompletionToken &&token)
+    // The return type of the initiating function is deduced from the CompletionToken type and the completion handler.
     -> typename asio::async_result<typename std::decay<CompletionToken>::type, void(std::error_code)>::return_type {
-    // Define a type alias for the concrete completion handler, as we will use
-    // the type in several places in the implementation below.
-    using completion_handler_type =
-        typename asio::async_completion<CompletionToken, void(std::error_code)>::completion_handler_type;
 
-    // In this example, the composed operation's intermediate completion handler
-    // is implemented as a hand-crafted function object.
+    using completion_handler_sig = void(std::error_code);
+    using completion_type = asio::async_completion<CompletionToken, completion_handler_sig>;
+    using completion_handler_type = typename completion_type::completion_handler_type;
+
+    // The intermediate completion handler.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init, hicpp-member-init)
     struct intermediate_completion_handler {
-        // The intermediate completion handler holds a reference to the socket as
-        // it is used for multiple async_write operations, as well as for obtaining
-        // the I/O executor (see get_executor below).
-        tcp::socket &socket_;
 
-        // The allocated buffer for the encoded message. The std::unique_ptr smart
-        // pointer is move-only, and as a consequence our intermediate completion
-        // handler is also move-only.
-        std::unique_ptr<std::string> encoded_message_;
+        tcp::socket &m_socket;
+        std::unique_ptr<std::string> m_encoded_message;
+        std::size_t m_repeat_count;
+        std::unique_ptr<asio::steady_timer> m_delay_timer;
+        enum { starting, waiting, writing } m_state;
+        asio::executor_work_guard<tcp::socket::executor_type> m_io_work;
+        completion_handler_type m_user_handler;
 
-        // The repeat count remaining.
-        std::size_t repeat_count_;
-
-        // A steady timer used for introducing a delay.
-        std::unique_ptr<asio::steady_timer> delay_timer_;
-
-        // To manage the cycle between the multiple underlying asychronous
-        // operations, our intermediate completion handler is implemented as a
-        // state machine.
-        enum { starting, waiting, writing } state_;
-
-        // As our composed operation performs multiple underlying I/O operations,
-        // we should maintain a work object against the I/O executor. This tells
-        // the I/O executor that there is still more work to come in the future.
-        asio::executor_work_guard<tcp::socket::executor_type> io_work_;
-
-        // The user-supplied completion handler, called once only on completion of
-        // the entire composed operation.
-        completion_handler_type handler_;
-
-        // By having a default value for the second argument, this function call
-        // operator matches the completion signature of both the async_write and
-        // steady_timer::async_wait operations.
-        void operator()(const std::error_code &error, std::size_t = 0) {
+        void operator()(const std::error_code &error, std::size_t /*unused*/ = 0) {
             if (!error) {
-                switch (state_) {
+                switch (m_state) {
                 case starting:
                 case writing:
-                    if (repeat_count_ > 0) {
-                        --repeat_count_;
-                        state_ = waiting;
-                        delay_timer_->expires_after(std::chrono::seconds(1));
-                        delay_timer_->async_wait(std::move(*this));
+                    if (m_repeat_count > 0) {
+                        --m_repeat_count;
+                        m_state = waiting;
+                        m_delay_timer->expires_after(std::chrono::seconds(1));
+                        m_delay_timer->async_wait(std::move(*this));
                         return; // Composed operation not yet complete.
                     }
                     break; // Composed operation complete, continue below.
                 case waiting:
-                    state_ = writing;
-                    asio::async_write(socket_, asio::buffer(*encoded_message_), std::move(*this));
+                    m_state = writing;
+                    asio::async_write(m_socket, asio::buffer(*m_encoded_message), std::move(*this));
                     return; // Composed operation not yet complete.
                 }
             }
 
-            // This point is reached only on completion of the entire composed
-            // operation.
-
-            // We no longer have any future work coming for the I/O executor.
-            io_work_.reset();
-
-            // Deallocate the encoded message before calling the user-supplied
-            // completion handler.
-            encoded_message_.reset();
-
-            // Call the user-supplied handler with the result of the operation.
-            handler_(error);
+            // We get here only on completion of the entire composed operation.
+            m_io_work.reset();         // no future work for the I/O executor.
+            m_encoded_message.reset(); // deallocate the encoded message
+            m_user_handler(error);     // Call the user-supplied handler with the result of the operation.
         }
 
-        // It is essential to the correctness of our composed operation that we
-        // preserve the executor of the user-supplied completion handler. With a
-        // hand-crafted function object we can do this by defining a nested type
-        // executor_type and member function get_executor. These obtain the
-        // completion handler's associated executor, and default to the I/O
-        // executor - in this case the executor of the socket - if the completion
-        // handler does not have its own.
+        // For correctness we must preserve the executor of the user-supplied completion handler.
         using executor_type = asio::associated_executor_t<completion_handler_type, tcp::socket::executor_type>;
-
         executor_type get_executor() const noexcept {
-            return asio::get_associated_executor(handler_, socket_.get_executor());
+            return asio::get_associated_executor(m_user_handler, m_socket.get_executor());
         }
 
-        // Although not necessary for correctness, we may also preserve the
-        // allocator of the user-supplied completion handler. This is achieved by
-        // defining a nested type allocator_type and member function get_allocator.
-        // These obtain the completion handler's associated allocator, and default
-        // to std::allocator<void> if the completion handler does not have its own.
+        // Although not necessary for correctness, we preserve the allocator of the user-supplied completion handler.
         using allocator_type = asio::associated_allocator_t<completion_handler_type, std::allocator<void>>;
-
         allocator_type get_allocator() const noexcept {
-            return asio::get_associated_allocator(handler_, std::allocator<void>{});
+            return asio::get_associated_allocator(m_user_handler, std::allocator<void>{});
         }
     };
 
-    // The asio::async_completion object takes the completion token and
-    // from it creates:
-    //
-    // - completion.completion_handler:
-    //     A completion handler (i.e. a callback) with the specified signature.
-    //
-    // - completion.result:
-    //     An object from which we obtain the result of the initiating function.
-    asio::async_completion<CompletionToken, void(std::error_code)> completion(token);
+    completion_type completion(token);
 
-    // Encode the message and copy it into an allocated buffer. The buffer will
-    // be maintained for the lifetime of the composed asynchronous operation.
     std::ostringstream os;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay, hicpp-no-array-decay)
     os << message;
     std::unique_ptr<std::string> encoded_message(new std::string(os.str()));
 
-    // Create a steady_timer to be used for the delay between messages.
     std::unique_ptr<asio::steady_timer> delay_timer(new asio::steady_timer(socket.get_executor().context()));
 
-    // Initiate the underlying operations by explicitly calling our intermediate
-    // completion handler's function call operator.
+    // Initiate the underlying operations by calling the intermediate completion handler's function call operator.
     intermediate_completion_handler{socket,
                                     std::move(encoded_message),
                                     repeat_count,
@@ -175,19 +108,18 @@ auto async_write_messages(tcp::socket &socket, const T &message, std::size_t rep
                                     asio::make_work_guard(socket.get_executor()),
                                     std::move(completion.completion_handler)}({});
 
-    // Finally, we return the result of the initiating function.
     return completion.result.get();
 }
 
-//------------------------------------------------------------------------------
-
+// Test our asynchronous operation using a lambda as a callback.
 void test_callback() {
+// Avoid asio/detail/impl/epoll_reactor.ipp:227:26: error: Assigned value is garbage or undefined
+// [clang-analyzer-core.uninitialized.Assign,-warnings-as-errors]
+// Note: To narrow down the area of code disabled
+#ifndef __clang_analyzer__
     asio::io_context io_context;
-
     tcp::acceptor acceptor(io_context, {tcp::v4(), 55555});
     tcp::socket socket = acceptor.accept();
-
-    // Test our asynchronous operation using a lambda as a callback.
     async_write_messages(socket, "Testing callback\r\n", 5, [](const std::error_code &error) {
         if (!error) {
             std::cout << "Messages sent\n";
@@ -197,35 +129,37 @@ void test_callback() {
     });
 
     io_context.run();
+#endif
 }
 
-//------------------------------------------------------------------------------
-
+// Test our asynchronous operation using the use_future completion token.
 void test_future() {
-    asio::io_context io_context;
 
+// Avoid asio/detail/impl/epoll_reactor.ipp:227:26: error: Assigned value is garbage or undefined
+// [clang-analyzer-core.uninitialized.Assign,-warnings-as-errors]
+// Note: To narrow down the area of code disabled
+#ifndef __clang_analyzer__
+    asio::io_context io_context;
     tcp::acceptor acceptor(io_context, {tcp::v4(), 55555});
     tcp::socket socket = acceptor.accept();
-
-    // Test our asynchronous operation using the use_future completion token.
-    // This token causes the operation's initiating function to return a future,
-    // which may be used to synchronously wait for the result of the operation.
     std::future<void> f = async_write_messages(socket, "Testing future\r\n", 5, asio::use_future);
-
     io_context.run();
 
     try {
         // Get the result of the operation.
         f.get();
         std::cout << "Messages sent\n";
-    } catch (const std::exception &e) {
+    } catch (std::exception const &e) {
         std::cout << "Error: " << e.what() << "\n";
     }
+#endif
 }
 
-//------------------------------------------------------------------------------
-
 int main() {
-    test_callback();
-    test_future();
+    try {
+        test_callback();
+        test_future();
+    } catch (std::exception const &e) {
+        std::cout << "Error: " << e.what() << "\n";
+    }
 }
