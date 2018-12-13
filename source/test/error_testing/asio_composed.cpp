@@ -113,13 +113,13 @@ auto async_write_messages(tcp::socket &socket, T const &message, std::size_t rep
 
 // Test our asynchronous operation using a lambda as a callback.
 void test_callback() {
-// Avoid asio/detail/impl/epoll_reactor.ipp:227:26: error: Assigned value is garbage or undefined
-// [clang-analyzer-core.uninitialized.Assign,-warnings-as-errors]
-// Note: To narrow down the area of code disabled
-#ifndef __clang_analyzer__
     asio::io_context io_context;
+#ifndef __clang_analyzer__
     tcp::acceptor acceptor(io_context, {tcp::v4(), 55555});
     tcp::socket socket = acceptor.accept();
+#else
+    tcp::socket socket(io_context);
+#endif
     async_write_messages(socket, "Testing callback\r\n", 5, [](const std::error_code &error) {
         if (!error) {
             std::cout << "Messages sent\n";
@@ -129,19 +129,17 @@ void test_callback() {
     });
 
     io_context.run();
-#endif
 }
 
 // Test our asynchronous operation using the use_future completion token.
 void test_future() {
-
-// Avoid asio/detail/impl/epoll_reactor.ipp:227:26: error: Assigned value is garbage or undefined
-// [clang-analyzer-core.uninitialized.Assign,-warnings-as-errors]
-// Note: To narrow down the area of code disabled
-#ifndef __clang_analyzer__
     asio::io_context io_context;
+#ifndef __clang_analyzer__
     tcp::acceptor acceptor(io_context, {tcp::v4(), 55555});
     tcp::socket socket = acceptor.accept();
+#else
+    tcp::socket socket(io_context);
+#endif
     std::future<void> f = async_write_messages(socket, "Testing future\r\n", 5, asio::use_future);
     io_context.run();
 
@@ -152,7 +150,7 @@ void test_future() {
     } catch (std::exception const &e) {
         std::cout << "Error: " << e.what() << "\n";
     }
-#endif
+
 }
 
 int main() {
