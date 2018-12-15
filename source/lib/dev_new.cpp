@@ -121,24 +121,44 @@ class memory_manager {
     memory_manager &operator=(memory_manager && /*unused*/) = delete;
 
     std::uint64_t total_allocations() const noexcept {
+        if (!is_valid()) {
+            return 0;
+        }
+
         lock_guard lock(m_mutex);
         return m_total_allocations;
     }
     std::uint64_t live_allocations() const noexcept {
+        if (!is_valid()) {
+            return 0;
+        }
+
         lock_guard lock(m_mutex);
         return m_pointers.size();
     }
 
     std::uint64_t max_allocated_size() const noexcept {
+        if (!is_valid()) {
+            return 0;
+        }
+
         lock_guard lock(m_mutex);
         return m_max_allocated_size;
     }
     std::uint64_t allocated_size() const noexcept {
+        if (!is_valid()) {
+            return 0;
+        }
+
         lock_guard lock(m_mutex);
         return m_allocated_size;
     }
 
     void set_error_countdown(std::uint64_t countdown) noexcept {
+        if (!is_valid()) {
+            return;
+        }
+
         lock_guard lock(m_mutex);
         m_error_testing = true;
         m_error_countdown = countdown;
@@ -147,21 +167,37 @@ class memory_manager {
     }
 
     std::uint64_t get_error_countdown() noexcept {
+        if (!is_valid()) {
+            return 0;
+        }
+
         lock_guard lock(m_mutex);
         return m_error_countdown;
     }
 
     void pause_error_testing() noexcept {
+        if (!is_valid()) {
+            return;
+        }
+
         lock_guard lock(m_mutex);
         m_error_testing = false;
     }
 
     void resume_error_testing() noexcept {
+        if (!is_valid()) {
+            return;
+        }
+
         lock_guard lock(m_mutex);
         m_error_testing = true;
     }
 
     void error_point() {
+        if (!is_valid()) {
+            return;
+        }
+
         lock_guard lock(m_mutex);
         error_point_implementation(1);
     }
@@ -176,6 +212,10 @@ class memory_manager {
     }
 
     void *allocate(std::size_t count) {
+        if (!is_valid()) {
+            throw std::bad_alloc();
+        }
+
         lock_guard lock(m_mutex);
         error_point_implementation(count);
 
@@ -207,6 +247,10 @@ class memory_manager {
     }
 
     void deallocate(void *ptr) noexcept {
+        if (!is_valid()) {
+            return;
+        }
+
         lock_guard lock(m_mutex);
         if (ptr != nullptr && m_pointers.erase(ptr) != 0) {
             auto user_ptr = static_cast<std::size_t *>(ptr);
@@ -220,6 +264,10 @@ class memory_manager {
     }
 
     void check_allocation(void *ptr) {
+        if (!is_valid()) {
+            return;
+        }
+
         lock_guard lock(m_mutex);
         if (m_pointers.count(ptr) == 0) {
             throw std::domain_error("dev_new: pointer not allocated by this allocator");
@@ -227,15 +275,24 @@ class memory_manager {
     }
 
     bool check_allocation(void *ptr, std::nothrow_t const & /*unused*/) noexcept {
+        if (!is_valid()) {
+            return false;
+        }
+
         lock_guard lock(m_mutex);
         return m_pointers.count(ptr) != 0;
     }
 
   private:
+    std::uint64_t const valid_key = 0x123456789ABCDEFULL;
+
     memory_manager()
-        : m_total_allocations{}, m_allocated_size{}, m_max_allocated_size{}, m_error_testing{},
+        : m_valid_key{valid_key}, m_total_allocations{}, m_allocated_size{}, m_max_allocated_size{}, m_error_testing{},
           m_error_countdown{UINT64_MAX}, m_error_allocated_size{UINT64_MAX} {}
-    ~memory_manager() = default;
+
+    ~memory_manager() { m_valid_key = 0; }
+
+    bool is_valid() const { return valid_key == m_valid_key; }
 
     void error_point_implementation(std::size_t count) {
         if (m_error_testing) {
@@ -254,6 +311,7 @@ class memory_manager {
     using pointer_set = std::unordered_set<void *, std::hash<void *>, std::equal_to<>, mallocator<void *>>;
     using lock_guard = std::lock_guard<std::mutex>;
 
+    mutable std::uint64_t volatile m_valid_key;
     mutable std::mutex m_mutex;
     pointer_set m_pointers;
     std::uint64_t m_total_allocations;
