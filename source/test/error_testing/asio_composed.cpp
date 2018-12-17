@@ -39,9 +39,9 @@ auto async_many_timers(asio::io_context &io_context, bool &user_resource,
         internal_state(asio::io_context &io_context, bool &user_resource,
                        completion_handler_type user_completion_handler)
             : io_context{io_context}, user_resource{user_resource},
-              user_completion_handler{std::move(user_completion_handler)},
-              io_work{asio::make_work_guard(io_context.get_executor())}, run_timer{io_context}, is_open{false},
-              executing{false} {
+              user_completion_handler{std::move(user_completion_handler)}, io_work{asio::make_work_guard(
+                                                                               io_context.get_executor())},
+              run_timer{io_context}, is_open{false}, executing{false} {
 
             int timer_count = 25;
             internal_timers.reserve(timer_count);

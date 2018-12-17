@@ -46,7 +46,7 @@ set(ERROR_TESTING
     asio_post_basic; asio_post_loop; asio_post_loop_copy_mem; asio_post_loop_move_mem; asio_post_loop_move_mem_v2
     asio_timer_loop_copy_mem; asio_timer_loop_move_mem;
     asio_udp_read_timeout_basic; asio_udp_read_timeout_basic_copy; asio_udp_read_timeout_basic_copy_v2;
-    asio_composed)
+    asio_composed_basic; asio_composed)
 foreach(test_name ${ERROR_TESTING})
     define_test_executable(error_testing ${test_name} ${test_name}.cpp)
 endforeach(test_name)
