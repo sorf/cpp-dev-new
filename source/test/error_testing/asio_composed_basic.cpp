@@ -20,7 +20,7 @@
 #include <random>
 #include <thread>
 
-// A composed operations that a single timer multiple times in series.
+// A composed operation that is impelmented as a series of timer waits.
 template <typename CompletionToken>
 auto async_many_timers(asio::io_context &io_context, std::chrono::steady_clock::duration run_duration,
                        CompletionToken &&token) ->
