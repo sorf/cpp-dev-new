@@ -16,8 +16,6 @@
 #include <exception>
 #include <iostream>
 #include <memory>
-#include <random>
-#include <thread>
 
 // A composed operation that is impelmented as a series of timer waits.
 template <typename CompletionToken>
