@@ -6,7 +6,6 @@
 #include <asio/bind_executor.hpp>
 #include <asio/executor_work_guard.hpp>
 #include <asio/io_context.hpp>
-#include <asio/io_context_strand.hpp>
 #include <asio/steady_timer.hpp>
 #include <asio/use_future.hpp>
 #include <atomic>
@@ -119,33 +118,6 @@ void test_callback(std::chrono::steady_clock::duration run_duration) {
     io_context.run();
 }
 
-void test_callback_strand(std::chrono::steady_clock::duration run_duration) {
-    asio::io_context io_context;
-    auto io_work = asio::make_work_guard(io_context.get_executor());
-    std::vector<std::thread> threads;
-    int thread_count = 25;
-    threads.reserve(thread_count);
-    for (int i = 0; i < thread_count; ++i) {
-        threads.emplace_back([&io_context] { io_context.run(); });
-    }
-
-    std::cout << "[callback_strand] Timers start" << std::endl;
-    asio::io_context::strand strand_timers(io_context);
-    async_many_timers(io_context, run_duration, asio::bind_executor(strand_timers, [](std::error_code const &error) {
-                          if (error) {
-                              std::cout << "[callback_strand] Timers error: " << error.message() << std::endl;
-                          } else {
-                              std::cout << "[callback_strand] Timers done" << std::endl;
-                          }
-                      }));
-
-    io_work.reset();
-    io_context.run();
-    for (auto &t : threads) {
-        t.join();
-    }
-}
-
 void test_future(std::chrono::steady_clock::duration run_duration) {
     asio::io_context io_context;
     std::cout << "[future] Timers start" << std::endl;
@@ -163,39 +135,10 @@ void test_future(std::chrono::steady_clock::duration run_duration) {
     thread_wait_future.join();
 }
 
-void test_future_strand(std::chrono::steady_clock::duration run_duration) {
-    asio::io_context io_context;
-    auto io_work = asio::make_work_guard(io_context.get_executor());
-    std::vector<std::thread> threads;
-    int thread_count = 25;
-    threads.reserve(thread_count);
-    for (int i = 0; i < thread_count; ++i) {
-        threads.emplace_back([&io_context] { io_context.run(); });
-    }
-
-    std::cout << "[future_strand] Timers start" << std::endl;
-    asio::io_context::strand strand_timers(io_context);
-    std::future<void> f = async_many_timers(io_context, run_duration, asio::use_future);
-    //                                      TODO(sorf): How to add strand_timers here ^^^ ?
-    try {
-        f.get();
-        std::cout << "[future_strand] Timers done" << std::endl;
-    } catch (std::exception const &e) {
-        std::cout << "[future_strand] Timers error: " << e.what() << std::endl;
-    }
-
-    io_work.reset();
-    for (auto &t : threads) {
-        t.join();
-    }
-}
-
 int main() {
     try {
         test_callback(std::chrono::seconds(1));
-        test_callback_strand(std::chrono::seconds(1));
         test_future(std::chrono::seconds(1));
-        test_future_strand(std::chrono::seconds(1));
     } catch (std::exception const &e) {
         std::cout << "Error: " << e.what() << "\n";
     }
