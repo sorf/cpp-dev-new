@@ -50,8 +50,8 @@ auto async_many_timers(asio::io_context &io_context, std::chrono::steady_clock::
             }
 
             run_timer.expires_after(one_wait);
-            run_timer.async_wait(asio::bind_executor(
-                get_executor(), [this, self = this->shared_from_this() ](asio::error_code ec) {
+            run_timer.async_wait(
+                asio::bind_executor(get_executor(), [this, self = this->shared_from_this()](asio::error_code ec) {
                     DEV_NEW_ASSERT(!executing);
                     executing = true;
                     BOOST_SCOPE_EXIT_ALL(&) { executing = false; };
