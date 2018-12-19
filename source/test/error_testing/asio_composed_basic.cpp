@@ -139,7 +139,7 @@ void test_future(std::chrono::steady_clock::duration run_duration) {
     thread_wait_future.join();
 }
 
-} //namespace
+} // namespace
 
 int main() {
     try {

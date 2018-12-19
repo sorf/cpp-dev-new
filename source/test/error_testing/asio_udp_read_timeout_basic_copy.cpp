@@ -30,16 +30,15 @@ int main() {
         buffer_t timeout_buffer(10);
 
         // Wait to receive something
-        socket.async_receive_from(
-            asio::buffer(data), sender_endpoint, [](error_code ec, std::size_t bytes_recvd) {
-                if (!ec) {
-                    dev_new::run_no_error_testing([&] { std::cout << "received: " << bytes_recvd << std::endl; });
-                } else if (ec == asio::error::operation_aborted) {
-                    dev_new::run_no_error_testing([&] { std::cout << "received: cancelled" << std::endl; });
-                } else {
-                    dev_new::run_no_error_testing([&] { std::cout << "received error: " << ec << std::endl; });
-                }
-            });
+        socket.async_receive_from(asio::buffer(data), sender_endpoint, [](error_code ec, std::size_t bytes_recvd) {
+            if (!ec) {
+                dev_new::run_no_error_testing([&] { std::cout << "received: " << bytes_recvd << std::endl; });
+            } else if (ec == asio::error::operation_aborted) {
+                dev_new::run_no_error_testing([&] { std::cout << "received: cancelled" << std::endl; });
+            } else {
+                dev_new::run_no_error_testing([&] { std::cout << "received error: " << ec << std::endl; });
+            }
+        });
 
         // Timeout
         timeout_timer.expires_after(std::chrono::milliseconds(100));
