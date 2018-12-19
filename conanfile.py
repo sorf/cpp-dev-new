@@ -1,7 +1,7 @@
 from conans import ConanFile, CMake, tools
 
 class DevNewConan(ConanFile):
-    name = "dev_new"
+    name = "cpp_dev_new"
     version = "0.1"
     license = "The Unlicense"
     url = "https://github.com/sorf/cpp-dev-new"
