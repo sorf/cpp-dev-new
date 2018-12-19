@@ -22,9 +22,9 @@ class DevNewConan(ConanFile):
                                                     " /D_WIN32_WINNT=0x0A00" +\
                                                     " /DBOOST_ASIO_STANDALONE"
         elif self.settings.compiler == "gcc":
-            cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -DASIO_STANDALONE"
+            cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -DBOOST_ASIO_STANDALONE"
         elif self.settings.compiler == "clang":
-            cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -Wglobal-constructors -DASIO_STANDALONE"
+            cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -Wglobal-constructors -DBOOST_ASIO_STANDALONE"
 
         if not self.settings.os == "Windows":
             cmake.definitions["CONAN_CXX_FLAGS"] += " -pthread"
