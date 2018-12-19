@@ -32,8 +32,8 @@ using error_code = boost::system::error_code;
 // completes.This way we test that all the internal operations happen only as part of this user called composed
 // operation - no internal operation should execute once the completion callback of the composed operation has been
 // called (or scheduled to be called).
-template <typename Executor, typename CompletionToken>
-auto async_many_timers(asio::io_context &io_context, Executor executor, bool &user_resource,
+template <typename CompletionToken>
+auto async_many_timers(asio::io_context &io_context, bool &user_resource,
                        std::chrono::steady_clock::duration run_duration, CompletionToken &&token) ->
     typename asio::async_result<std::decay_t<CompletionToken>, void(error_code)>::return_type {
 
@@ -42,11 +42,12 @@ auto async_many_timers(asio::io_context &io_context, Executor executor, bool &us
     using completion_handler_type = typename completion_type::completion_handler_type;
 
     struct internal_state : public std::enable_shared_from_this<internal_state> {
-        internal_state(asio::io_context &io_context, Executor &&executor, bool &user_resource,
+        internal_state(asio::io_context &io_context, bool &user_resource,
                        completion_handler_type user_completion_handler)
-            : io_context{io_context}, executor{std::move(executor)}, user_resource{user_resource},
-              user_completion_handler{std::move(user_completion_handler)},
-              io_work{asio::make_work_guard(this->executor)}, run_timer{io_context}, is_open{false}, executing{false} {
+            : io_context{io_context}, user_resource{user_resource},
+              user_completion_handler{std::move(user_completion_handler)}, io_work{asio::make_work_guard(
+                                                                               io_context.get_executor())},
+              run_timer{io_context}, is_open{false}, executing{false} {
 
             int timer_count = 25;
             internal_timers.reserve(timer_count);
@@ -151,20 +152,19 @@ auto async_many_timers(asio::io_context &io_context, Executor executor, bool &us
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-local-typedefs"
 #endif
-        using executor_type = asio::associated_executor_t<completion_handler_type, Executor>;
+        using executor_type = asio::associated_executor_t<completion_handler_type, asio::io_context::executor_type>;
 #if BOOST_COMP_CLANG
 #pragma clang diagnostic pop
 #endif
         executor_type get_executor() const noexcept {
-            return asio::get_associated_executor(user_completion_handler, executor);
+            return asio::get_associated_executor(user_completion_handler, io_context.get_executor());
         }
 
         asio::io_context &io_context;
-        Executor executor;
         bool &user_resource;
         completion_handler_type user_completion_handler;
         error_code user_completion_error;
-        asio::executor_work_guard<Executor> io_work;
+        asio::executor_work_guard<asio::io_context::executor_type> io_work;
 
         asio::steady_timer run_timer;
         std::vector<asio::steady_timer> internal_timers;
@@ -173,8 +173,7 @@ auto async_many_timers(asio::io_context &io_context, Executor executor, bool &us
     };
 
     completion_type completion(token);
-    std::make_shared<internal_state>(io_context, std::move(executor), user_resource,
-                                     std::move(completion.completion_handler))
+    std::make_shared<internal_state>(io_context, user_resource, std::move(completion.completion_handler))
         ->start_many_waits(run_duration);
     return completion.result.get();
 }
@@ -184,17 +183,16 @@ void test_callback(std::chrono::steady_clock::duration run_duration) {
     auto user_resource = std::make_unique<bool>(true);
     std::cout << "[callback] Timers start" << std::endl;
 
-    async_many_timers(io_context, io_context.get_executor(), *user_resource, run_duration,
-                      [&user_resource](error_code const &error) {
-                          *user_resource = false;
-                          user_resource.reset();
+    async_many_timers(io_context, *user_resource, run_duration, [&user_resource](error_code const &error) {
+        *user_resource = false;
+        user_resource.reset();
 
-                          if (error) {
-                              std::cout << "[callback] Timers error: " << error.message() << std::endl;
-                          } else {
-                              std::cout << "[callback] Timers done" << std::endl;
-                          }
-                      });
+        if (error) {
+            std::cout << "[callback] Timers error: " << error.message() << std::endl;
+        } else {
+            std::cout << "[callback] Timers done" << std::endl;
+        }
+    });
 
     io_context.run();
 }
@@ -213,7 +211,7 @@ void test_callback_strand(std::chrono::steady_clock::duration run_duration) {
     std::cout << "[callback_strand] Timers start" << std::endl;
     asio::strand<asio::io_context::executor_type> strand_timers(io_context.get_executor());
 
-    async_many_timers(io_context, io_context.get_executor(), *user_resource, run_duration,
+    async_many_timers(io_context, *user_resource, run_duration,
                       asio::bind_executor(strand_timers, [&user_resource](error_code const &error) {
                           *user_resource = false;
                           user_resource.reset();
@@ -232,46 +230,12 @@ void test_callback_strand(std::chrono::steady_clock::duration run_duration) {
     }
 }
 
-void test_callback_strand_v2(std::chrono::steady_clock::duration run_duration) {
-    asio::io_context io_context;
-    auto io_work = asio::make_work_guard(io_context.get_executor());
-    std::vector<std::thread> threads;
-    int thread_count = 25;
-    threads.reserve(thread_count);
-    for (int i = 0; i < thread_count; ++i) {
-        threads.emplace_back([&io_context] { io_context.run(); });
-    }
-
-    auto user_resource = std::make_unique<bool>(true);
-    std::cout << "[callback_strand_v2] Timers start" << std::endl;
-    asio::strand<asio::io_context::executor_type> strand_timers(io_context.get_executor());
-
-    async_many_timers(io_context, strand_timers, *user_resource, run_duration,
-                      [&user_resource](error_code const &error) {
-                          *user_resource = false;
-                          user_resource.reset();
-
-                          if (error) {
-                              std::cout << "[callback_strand_v2] Timers error: " << error.message() << std::endl;
-                          } else {
-                              std::cout << "[callback_strand_v2] Timers done" << std::endl;
-                          }
-                      });
-
-    io_work.reset();
-    io_context.run();
-    for (auto &t : threads) {
-        t.join();
-    }
-}
-
 void test_future(std::chrono::steady_clock::duration run_duration) {
     asio::io_context io_context;
     auto user_resource = std::make_unique<bool>(true);
     std::cout << "[future] Timers start" << std::endl;
 
-    std::future<void> f =
-        async_many_timers(io_context, io_context.get_executor(), *user_resource, run_duration, asio::use_future);
+    std::future<void> f = async_many_timers(io_context, *user_resource, run_duration, asio::use_future);
     std::thread thread_wait_future([f = std::move(f), &user_resource]() mutable {
         try {
             f.get();
@@ -287,45 +251,13 @@ void test_future(std::chrono::steady_clock::duration run_duration) {
     thread_wait_future.join();
 }
 
-void test_future_strand(std::chrono::steady_clock::duration run_duration) {
-    asio::io_context io_context;
-    auto io_work = asio::make_work_guard(io_context.get_executor());
-    std::vector<std::thread> threads;
-    int thread_count = 25;
-    threads.reserve(thread_count);
-    for (int i = 0; i < thread_count; ++i) {
-        threads.emplace_back([&io_context] { io_context.run(); });
-    }
-
-    auto user_resource = std::make_unique<bool>(true);
-    std::cout << "[future_strand] Timers start" << std::endl;
-    asio::strand<asio::io_context::executor_type> strand_timers(io_context.get_executor());
-    std::future<void> f = async_many_timers(io_context, strand_timers, *user_resource, run_duration, asio::use_future);
-    try {
-        f.get();
-        *user_resource = false;
-        user_resource.reset();
-
-        std::cout << "[future_strand] Timers done" << std::endl;
-    } catch (std::exception const &e) {
-        std::cout << "[future_strand] Timers error: " << e.what() << std::endl;
-    }
-
-    io_work.reset();
-    for (auto &t : threads) {
-        t.join();
-    }
-}
-
 } // namespace
 
 int main() {
     try {
         test_callback(std::chrono::seconds(1));
         test_callback_strand(std::chrono::seconds(1));
-        test_callback_strand_v2(std::chrono::seconds(1));
         test_future(std::chrono::seconds(1));
-        test_future_strand(std::chrono::seconds(1));
     } catch (std::exception const &e) {
         std::cout << "Error: " << e.what() << "\n";
     }
