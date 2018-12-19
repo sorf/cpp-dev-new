@@ -20,7 +20,7 @@ class DevNewConan(ConanFile):
         if self.settings.compiler == "Visual Studio":
             cmake.definitions["CONAN_CXX_FLAGS"] += " /W4 /WX /D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS" +\
                                                     " /D_WIN32_WINNT=0x0A00" +\
-                                                    " /DASIO_STANDALONE"
+                                                    " /DBOOST_ASIO_STANDALONE"
         elif self.settings.compiler == "gcc":
             cmake.definitions["CONAN_CXX_FLAGS"] += " -Wall -Wextra -Werror -DASIO_STANDALONE"
         elif self.settings.compiler == "clang":
