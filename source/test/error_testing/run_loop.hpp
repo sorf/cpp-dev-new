@@ -3,8 +3,10 @@
 
 #include "dev_new.hpp"
 
-#include <asio/io_context.hpp>
+#include <boost/asio/io_context.hpp>
 #include <iostream>
+
+namespace asio = boost::asio;
 
 namespace error_testing {
 

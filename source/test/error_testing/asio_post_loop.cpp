@@ -2,8 +2,10 @@
 #include "dev_new.hpp"
 #include "run_loop.hpp"
 
-#include <asio/io_context.hpp>
-#include <asio/post.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
+
+namespace asio = boost::asio;
 
 namespace {
 

@@ -3,15 +3,18 @@
 #include "run_loop.hpp"
 
 #include <array>
-#include <asio/buffer.hpp>
-#include <asio/io_context.hpp>
-#include <asio/ip/udp.hpp>
-#include <asio/steady_timer.hpp>
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/udp.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <chrono>
 #include <vector>
 
+namespace asio = boost::asio;
+
 namespace {
 
+using error_code = boost::system::error_code;
 using buffer_t = std::vector<char>;
 
 } // namespace
@@ -28,7 +31,7 @@ int main() {
 
         // Set the timeout first
         timeout_timer.expires_after(std::chrono::milliseconds(100));
-        timeout_timer.async_wait([&, timeout_buffer](asio::error_code /*unused*/) {
+        timeout_timer.async_wait([&, timeout_buffer](error_code /*unused*/) {
 #if 0 // Execution blocks if we enable this
 
             // Simulate a handler copy operation before being called.
@@ -36,13 +39,13 @@ int main() {
             [[maybe_unused]] auto const timeout_buffer_copy = timeout_buffer;
 
 #endif
-            asio::error_code ignored;
+            error_code ignored;
             socket.close(ignored);
         });
 
         // And then wait to receive something
         socket.async_receive_from(
-            asio::buffer(data), sender_endpoint, [](asio::error_code ec, std::size_t bytes_recvd) {
+            asio::buffer(data), sender_endpoint, [](error_code ec, std::size_t bytes_recvd) {
                 if (!ec) {
                     dev_new::run_no_error_testing([&] { std::cout << "received: " << bytes_recvd << std::endl; });
                 } else if (ec == asio::error::operation_aborted) {

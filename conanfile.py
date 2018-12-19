@@ -10,8 +10,8 @@ class DevNewConan(ConanFile):
     options = {"clang_tidy": [True, False]}
     generators = "cmake"
     exports_sources = "source/*", ".clang-format", ".clang-tidy", "CMakeLists.txt", "format_check.sh"
-    requires = "boost/1.68.0@conan/stable"
-    build_requires = "asio/1.12.2@sorf/testing", "catch2/2.4.0@bincrafters/stable"
+    requires = "boost/1.69.0@conan/stable"
+    build_requires = "catch2/2.4.0@bincrafters/stable"
     default_options = "clang_tidy=False", "boost:header_only=True"
 
     def build(self):

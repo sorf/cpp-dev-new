@@ -3,12 +3,12 @@
 #include "dev_new.hpp"
 #include "run_loop.hpp"
 
-#include <asio/bind_executor.hpp>
-#include <asio/executor_work_guard.hpp>
-#include <asio/io_context.hpp>
-#include <asio/steady_timer.hpp>
-#include <asio/use_future.hpp>
 #include <atomic>
+#include <boost/asio/bind_executor.hpp>
+#include <boost/asio/executor_work_guard.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <boost/asio/use_future.hpp>
 #include <boost/format.hpp>
 #include <boost/predef.h>
 #include <boost/scope_exit.hpp>
@@ -17,13 +17,19 @@
 #include <iostream>
 #include <memory>
 
+namespace asio = boost::asio;
+
+namespace {
+
+using error_code = boost::system::error_code;
+
 // A composed operation that is impelmented as a series of timer waits.
 template <typename CompletionToken>
 auto async_many_timers(asio::io_context &io_context, std::chrono::steady_clock::duration run_duration,
                        CompletionToken &&token) ->
-    typename asio::async_result<std::decay_t<CompletionToken>, void(std::error_code)>::return_type {
+    typename asio::async_result<std::decay_t<CompletionToken>, void(error_code)>::return_type {
 
-    using completion_handler_sig = void(std::error_code);
+    using completion_handler_sig = void(error_code);
     using completion_type = asio::async_completion<CompletionToken, completion_handler_sig>;
     using completion_handler_type = typename completion_type::completion_handler_type;
 
@@ -51,7 +57,7 @@ auto async_many_timers(asio::io_context &io_context, std::chrono::steady_clock::
 
             run_timer.expires_after(one_wait);
             run_timer.async_wait(
-                asio::bind_executor(get_executor(), [this, self = this->shared_from_this()](asio::error_code ec) {
+                asio::bind_executor(get_executor(), [this, self = this->shared_from_this()](error_code ec) {
                     DEV_NEW_ASSERT(!executing);
                     executing = true;
                     BOOST_SCOPE_EXIT_ALL(&) { executing = false; };
@@ -105,7 +111,7 @@ auto async_many_timers(asio::io_context &io_context, std::chrono::steady_clock::
 void test_callback(std::chrono::steady_clock::duration run_duration) {
     asio::io_context io_context;
     std::cout << "[callback] Timers start" << std::endl;
-    async_many_timers(io_context, run_duration, [](std::error_code const &error) {
+    async_many_timers(io_context, run_duration, [](error_code const &error) {
         if (error) {
             std::cout << "[callback] Timers error: " << error.message() << std::endl;
         } else {
@@ -132,6 +138,8 @@ void test_future(std::chrono::steady_clock::duration run_duration) {
     io_context.run();
     thread_wait_future.join();
 }
+
+} //namespace
 
 int main() {
     try {

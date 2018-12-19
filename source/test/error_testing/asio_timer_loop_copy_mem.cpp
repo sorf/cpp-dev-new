@@ -2,20 +2,23 @@
 #include "dev_new.hpp"
 #include "run_loop.hpp"
 
-#include <asio/io_context.hpp>
-#include <asio/steady_timer.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <chrono>
 #include <vector>
 
+namespace asio = boost::asio;
+
 namespace {
 
+using error_code = boost::system::error_code;
 using buffer_t = std::vector<char>;
 
 void do_wait(asio::steady_timer &timer, unsigned count, buffer_t const &buffer) {
     dev_new::run_no_error_testing([&] { std::cout << "do_wait: " << count << std::endl; });
     if (count != 0) {
         timer.expires_after(std::chrono::milliseconds(10));
-        timer.async_wait([&timer, count, buffer](asio::error_code ec) {
+        timer.async_wait([&timer, count, buffer](error_code ec) {
             if (!ec) {
                 do_wait(timer, count - 1, buffer);
             } else {
