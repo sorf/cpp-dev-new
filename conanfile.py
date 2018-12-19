@@ -40,8 +40,12 @@ class DevNewConan(ConanFile):
 
         cmake.configure()
         cmake.build()
-        with tools.environment_append({"CTEST_OUTPUT_ON_FAILURE": "1"}):
-            cmake.test()
+        if self.settings.compiler == "Visual Studio" and self.settings.build_type == "Debug":
+            self.output.warn("Skipping tests in Visual Studio/Debug build. "
+                             "Error testing will fail with checked iterators")
+        else:
+            with tools.environment_append({"CTEST_OUTPUT_ON_FAILURE": "1"}):
+                cmake.test()
 
     def package(self):
         self.copy("*.hpp", dst="include", src="source/include")
